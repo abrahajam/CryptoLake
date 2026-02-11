@@ -1,0 +1,282 @@
+# ============================================================
+# CryptoLake — Docker Compose
+# ============================================================
+# Levanta todo el ecosistema de data engineering con:
+#   docker compose up -d
+#
+# Servicios:
+#   - MinIO (S3 local)        → Puerto 9000 (API), 9001 (Console)
+#   - Iceberg REST Catalog    → Puerto 8181
+#   - Kafka (KRaft mode)      → Puerto 9092
+#   - Kafka UI                → Puerto 8080
+#   - Spark Master + Worker   → Puerto 8082 (UI), 7077 (master)
+#   - Airflow                 → Puerto 8083
+#   - PostgreSQL (para Airflow)
+# ============================================================
+
+# "x-" es una extensión YAML: define variables reutilizables.
+# Todos los servicios que necesitan conectarse a MinIO y Kafka
+# comparten estas variables de entorno.
+x-common-env: &common-env
+  MINIO_ENDPOINT: http://minio:9000
+  MINIO_ACCESS_KEY: cryptolake
+  MINIO_SECRET_KEY: cryptolake123
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  ICEBERG_CATALOG_URI: http://iceberg-rest:8181
+  AWS_ACCESS_KEY_ID: cryptolake
+  AWS_SECRET_ACCESS_KEY: cryptolake123
+  AWS_REGION: us-east-1
+
+services:
+
+  # ==========================================================
+  # CAPA DE ALMACENAMIENTO
+  # ==========================================================
+
+  # MinIO: Clon de Amazon S3 que corre localmente.
+  # Almacena todos nuestros datos (Bronze, Silver, Gold).
+  # En producción lo reemplazaríamos por S3 real sin cambiar código.
+  minio:
+    image: minio/minio:latest
+    container_name: cryptolake-minio
+    ports:
+      - "9000:9000"   # API S3 (para que Spark, Iceberg etc. lean/escriban)
+      - "9001:9001"   # Web Console (para ver los buckets visualmente)
+    environment:
+      MINIO_ROOT_USER: cryptolake
+      MINIO_ROOT_PASSWORD: cryptolake123
+    # "server /data" arranca MinIO con /data como directorio de almacenamiento
+    command: server /data --console-address ":9001"
+    volumes:
+      # Volume nombrado: los datos persisten aunque pares el contenedor
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # minio-init: Contenedor efímero que crea los buckets al arrancar.
+  # Se ejecuta una vez y termina. Como un script de setup.
+  minio-init:
+    image: minio/mc:latest
+    container_name: cryptolake-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy   # Espera a que MinIO esté ready
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 cryptolake cryptolake123;
+      mc mb local/cryptolake-bronze --ignore-existing;
+      mc mb local/cryptolake-silver --ignore-existing;
+      mc mb local/cryptolake-gold --ignore-existing;
+      mc mb local/cryptolake-checkpoints --ignore-existing;
+      echo '✅ Buckets creados correctamente';
+      "
+
+  # Iceberg REST Catalog: Un servidor que gestiona los metadatos de las
+  # tablas Iceberg. Cuando Spark hace "SELECT * FROM cryptolake.bronze.prices",
+  # pregunta a este catalog dónde están los archivos en MinIO.
+  iceberg-rest:
+    image: tabulario/iceberg-rest:1.5.0
+    container_name: cryptolake-iceberg-rest
+    ports:
+      - "8181:8181"
+    environment:
+      CATALOG_WAREHOUSE: s3://cryptolake-bronze/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      AWS_ACCESS_KEY_ID: cryptolake
+      AWS_SECRET_ACCESS_KEY: cryptolake123
+      AWS_REGION: us-east-1
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  # ==========================================================
+  # CAPA DE STREAMING
+  # ==========================================================
+
+  # Apache Kafka en modo KRaft (sin ZooKeeper).
+  # KRaft es el nuevo modo de Kafka donde no necesita ZooKeeper
+  # como coordinador externo. Es más simple y moderno.
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: cryptolake-kafka
+    ports:
+      - "9092:9092"     # Puerto para conexiones desde tu Mac
+    environment:
+      KAFKA_NODE_ID: 1
+      # LISTENERS: define en qué interfaces escucha Kafka.
+      # - PLAINTEXT (kafka:29092): para conexiones INTERNAS entre contenedores
+      # - EXTERNAL (localhost:9092): para conexiones desde TU MAC
+      # - CONTROLLER (kafka:29093): para el protocolo KRaft interno
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,EXTERNAL://0.0.0.0:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk  # ID fijo para que no cambie entre reinicios
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: kafka-topics --bootstrap-server localhost:29092 --list
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # Kafka UI: Interfaz web para ver topics, mensajes, consumer groups...
+  # No es necesario para producción pero es MUY útil para desarrollo.
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: cryptolake-kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: cryptolake
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # ==========================================================
+  # CAPA DE PROCESAMIENTO
+  # ==========================================================
+
+  # Spark Master: El coordinador del cluster de Spark.
+  # Recibe los jobs y los distribuye a los workers.
+  spark-master:
+    build:
+      context: ./docker/spark
+      dockerfile: Dockerfile
+    container_name: cryptolake-spark-master
+    ports:
+      - "8082:8080"   # Spark Web UI (ver jobs en ejecución)
+      - "7077:7077"   # Puerto del master (los workers se conectan aquí)
+    environment:
+      <<: *common-env
+      SPARK_MODE: master
+    volumes:
+      # Montamos nuestro código fuente dentro del contenedor.
+      # Así podemos editar en nuestro Mac y Spark ve los cambios al instante.
+      - ./src:/opt/spark/work/src
+
+  # Spark Worker: El que ejecuta las tareas reales.
+  # En producción tendrías muchos workers; aquí usamos 1.
+  spark-worker:
+    build:
+      context: ./docker/spark
+      dockerfile: Dockerfile
+    container_name: cryptolake-spark-worker
+    environment:
+      <<: *common-env
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: 2g
+      SPARK_WORKER_CORES: 2
+    depends_on:
+      - spark-master
+    volumes:
+      - ./src:/opt/spark/work/src
+
+  # ==========================================================
+  # CAPA DE ORQUESTACIÓN
+  # ==========================================================
+
+  # PostgreSQL: Base de datos interna de Airflow.
+  # Airflow necesita una DB para guardar el estado de los DAGs,
+  # el historial de ejecuciones, variables, conexiones, etc.
+  # NO es para nuestros datos de crypto — es solo para Airflow.
+  airflow-postgres:
+    image: postgres:16-alpine
+    container_name: cryptolake-airflow-db
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Airflow Webserver: La interfaz web donde ves y gestionas los DAGs.
+  airflow-webserver:
+    build:
+      context: ./docker/airflow
+      dockerfile: Dockerfile
+    container_name: cryptolake-airflow-webserver
+    ports:
+      - "8083:8080"   # Web UI de Airflow
+    environment:
+      <<: *common-env
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__WEBSERVER__SECRET_KEY: cryptolake-secret-key
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    volumes:
+      - ./src/orchestration/dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - airflow-logs:/opt/airflow/logs
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    # El comando hace 3 cosas al arrancar:
+    # 1. Migra la base de datos (crea las tablas de Airflow)
+    # 2. Crea un usuario admin
+    # 3. Arranca el servidor web
+    command: >
+      bash -c "
+      airflow db migrate &&
+      airflow users create
+        --username admin
+        --password admin
+        --firstname Admin
+        --lastname User
+        --role Admin
+        --email admin@cryptolake.dev || true &&
+      airflow webserver
+      "
+
+  # Airflow Scheduler: El proceso que vigila los DAGs y lanza
+  # las tareas cuando llega su hora programada.
+  airflow-scheduler:
+    build:
+      context: ./docker/airflow
+      dockerfile: Dockerfile
+    container_name: cryptolake-airflow-scheduler
+    environment:
+      <<: *common-env
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__WEBSERVER__SECRET_KEY: cryptolake-secret-key
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    volumes:
+      - ./src/orchestration/dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - airflow-logs:/opt/airflow/logs
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    command: airflow scheduler
+
+# ==========================================================
+# VOLUMES: Discos persistentes
+# ==========================================================
+# Sin volumes, los datos se pierden al parar los contenedores.
+# Con volumes, sobreviven a docker compose down/up.
+volumes:
+  minio-data:
+  kafka-data:
+  airflow-db-data:
+  airflow-logs:
