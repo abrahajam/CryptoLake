@@ -1,0 +1,71 @@
+.PHONY: help up down down-clean logs status spark-shell kafka-topics
+
+help: ## Mostrar esta ayuda
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
+	awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+up: ## Arrancar todos los servicios
+	@echo "🚀 Arrancando CryptoLake..."
+	docker compose up -d --build
+	@echo ""
+	@echo "⏳ Esperando a que los servicios estén listos (~60s la primera vez)..."
+	@sleep 30
+	@echo ""
+	@echo "✅ CryptoLake está corriendo!"
+	@echo ""
+	@echo "📊 Servicios disponibles:"
+	@echo "   MinIO Console:   http://localhost:9001  (user: cryptolake / pass: cryptolake123)"
+	@echo "   Kafka UI:        http://localhost:8080"
+	@echo "   Spark UI:        http://localhost:8082"
+	@echo "   Airflow:         http://localhost:8083  (user: admin / pass: admin)"
+	@echo "   Iceberg Catalog: http://localhost:8181"
+
+down: ## Parar todos los servicios (conserva datos)
+	docker compose down
+
+down-clean: ## Parar y BORRAR todos los datos
+	docker compose down -v
+	@echo "🗑️  Todos los volumes eliminados"
+
+rebuild: ## Reconstruir imágenes y arrancar (usar tras cambios en Dockerfiles)
+	docker compose down
+	docker compose up -d --build
+	@echo "⏳ Esperando..."
+	@sleep 30
+	@echo "✅ Reconstruido y arrancado"
+
+logs: ## Ver logs de todos los servicios
+	docker compose logs -f
+
+logs-kafka: ## Ver logs solo de Kafka
+	docker compose logs -f kafka
+
+logs-spark: ## Ver logs de Spark (master + worker)
+	docker compose logs -f spark-master spark-worker
+
+logs-airflow: ## Ver logs de Airflow
+	docker compose logs -f airflow-webserver airflow-scheduler
+
+status: ## Ver estado de los servicios
+	@docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+
+spark-shell: ## Abrir consola PySpark interactiva con Iceberg configurado
+	docker exec -it cryptolake-spark-master \
+	    /opt/spark/bin/pyspark
+
+kafka-topics: ## Listar topics de Kafka
+	docker exec cryptolake-kafka \
+	    kafka-topics --bootstrap-server localhost:29092 --list
+
+kafka-create-topics: ## Crear los topics necesarios
+	docker exec cryptolake-kafka \
+	    kafka-topics --bootstrap-server localhost:29092 \
+	    --create --topic prices.realtime \
+	    --partitions 3 --replication-factor 1 \
+	    --config retention.ms=86400000
+	@echo "✅ Topic 'prices.realtime' creado (retención: 24h, 3 particiones)"
+
+kafka-describe: ## Describir el topic de precios
+	docker exec cryptolake-kafka \
+	    kafka-topics --bootstrap-server localhost:29092 \
+	    --describe --topic prices.realtime
