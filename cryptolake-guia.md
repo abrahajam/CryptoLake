@@ -4612,5 +4612,3 @@ En las próximas fases implementaremos:
 
 2. **Fase 4**: Procesar Bronze → Silver (limpieza, deduplicación, MERGE INTO)
    y configurar los modelos dbt para la capa Gold (modelado dimensional).
-
-Dime cuando estés listo para continuar.
