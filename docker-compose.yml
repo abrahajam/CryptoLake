@@ -161,6 +161,7 @@ services:
     environment:
       <<: *common-env
       SPARK_MODE: master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     volumes:
       # Montamos nuestro código fuente dentro del contenedor.
       # Así podemos editar en nuestro Mac y Spark ve los cambios al instante.
@@ -179,6 +180,7 @@ services:
       SPARK_MASTER_URL: spark://spark-master:7077
       SPARK_WORKER_MEMORY: 2g
       SPARK_WORKER_CORES: 2
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     depends_on:
       - spark-master
     volumes:
