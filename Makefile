@@ -42,7 +42,7 @@ status: ## Ver estado de los servicios
 
 spark-shell: ## Abrir consola PySpark interactiva
 	docker exec -it cryptolake-spark-master \
-    		/opt/bitnami/spark/bin/pyspark
+    		/opt/spark/bin/pyspark
 
 kafka-topics: ## Listar topics de Kafka
 docker exec cryptolake-kafka \
