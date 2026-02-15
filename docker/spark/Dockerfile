@@ -1,13 +1,20 @@
-# ============================================================
-# Spark 3.5 con soporte para Apache Iceberg y S3 (MinIO)
-# ============================================================
-# Base: imagen oficial de Bitnami con Spark 3.5 preinstalado
-# Añadimos: JARs de Iceberg + librerías Python para data engineering
-FROM bitnami/spark:3.5.0
+# Base oficial de Apache Spark
+FROM apache/spark:3.5.0
 
 USER root
 
-# Instalar librerías Python que usaremos en nuestros jobs de Spark
+# Instalamos curl porque la imagen oficial es "slim"
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Variables de versión
+ENV ICEBERG_VERSION=1.5.2
+
+# Descarga de JARs en la ruta de Apache (/opt/spark/jars)
+WORKDIR /opt/spark/jars
+RUN curl -LO https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12-${ICEBERG_VERSION}.jar && \
+    curl -LO https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar
+
+# Instalamos las librerías de Python
 RUN pip install --no-cache-dir \
     pyspark==3.5.0 \
     pyiceberg[s3fs]==0.7.1 \
@@ -18,23 +25,8 @@ RUN pip install --no-cache-dir \
     pydantic-settings==2.1.0 \
     structlog==24.1.0
 
-# ── Descargar JARs de Iceberg ──────────────────────────────
-# Spark es un proyecto Java/Scala. Para que sepa "hablar" con
-# Iceberg y S3, necesita librerías .jar en su classpath.
-# Estos JARs se descargan de Maven Central (el npm de Java).
+# Copiamos el conf. Nota: El origen depende de desde dónde lances el build
+COPY spark-defaults.conf /opt/spark/conf/spark-defaults.conf
 
-ENV ICEBERG_VERSION=1.5.2
-
-# iceberg-spark-runtime: El "driver" de Iceberg para Spark
-RUN curl -L -o /opt/bitnami/spark/jars/iceberg-spark-runtime-3.5_2.12-${ICEBERG_VERSION}.jar \
-    https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/${ICEBERG_VERSION}/iceberg-spark-runtime-3.5_2.12-${ICEBERG_VERSION}.jar
-
-# iceberg-aws-bundle: Para que Iceberg hable con S3/MinIO
-RUN curl -L -o /opt/bitnami/spark/jars/iceberg-aws-bundle-${ICEBERG_VERSION}.jar \
-    https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar
-
-# Configuración por defecto de Spark
-COPY spark-defaults.conf /opt/bitnami/spark/conf/spark-defaults.conf
-
-# Volver al usuario no-root por seguridad
-USER 1001
+# Usuario estándar de Apache Spark
+USER 185
