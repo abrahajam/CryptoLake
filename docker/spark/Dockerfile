@@ -38,8 +38,26 @@ RUN curl -L -o /opt/spark/jars/iceberg-spark-runtime-3.5_2.12-${ICEBERG_VERSION}
  && curl -L -o /opt/spark/jars/iceberg-aws-bundle-${ICEBERG_VERSION}.jar \
     "https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar"
 
+# ── Descargar JARs de Kafka ───────────────────────────────
+# JARs de Kafka para Spark Structured Streaming
+# Estos permiten que Spark lea/escriba de Kafka directamente.
+ENV SPARK_VERSION=3.5.3
+ENV SCALA_VERSION=2.12
+RUN curl -L -o /opt/spark/jars/spark-sql-kafka-0-10_${SCALA_VERSION}-${SPARK_VERSION}.jar \
+    "https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_${SCALA_VERSION}/${SPARK_VERSION}/spark-sql-kafka-0-10_${SCALA_VERSION}-${SPARK_VERSION}.jar" \
+ && curl -L -o /opt/spark/jars/kafka-clients-3.6.1.jar \
+    "https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.6.1/kafka-clients-3.6.1.jar" \
+ && curl -L -o /opt/spark/jars/spark-token-provider-kafka-0-10_${SCALA_VERSION}-${SPARK_VERSION}.jar \
+    "https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_${SCALA_VERSION}/${SPARK_VERSION}/spark-token-provider-kafka-0-10_${SCALA_VERSION}-${SPARK_VERSION}.jar" \
+ && curl -L -o /opt/spark/jars/commons-pool2-2.12.0.jar \
+    "https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.12.0/commons-pool2-2.12.0.jar"
+
 # ── Copiar configuración de Spark ──────────────────────────
 COPY spark-defaults.conf /opt/spark/conf/spark-defaults.conf
+
+# PYTHONPATH: permite que los scripts hagan "from src.config import settings"
+# /opt/spark/work es donde montamos el código del proyecto
+ENV PYTHONPATH="/opt/spark/work:${PYTHONPATH}"
 
 # Volver al usuario spark (UID 185) por seguridad.
 # Nunca ejecutes servicios como root en producción.
