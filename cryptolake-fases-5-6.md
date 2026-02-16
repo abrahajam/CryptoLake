@@ -1630,6 +1630,3 @@ git commit -m "feat: Airflow orchestration with full pipeline DAG
  CoinGecko  Airflow Task      spark-submit      spark-submit     dbt run      dbt test
  Fear&Greed  Group 1           Group 2           Group 3         Group 4      Group 4
 ```
-
-Avísame cuando lo tengas funcionando y pasamos a las Fases 7 y 8 (Serving con FastAPI +
-Streamlit dashboard, y CI/CD con GitHub Actions + Terraform).
