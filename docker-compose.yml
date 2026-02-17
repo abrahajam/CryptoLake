@@ -133,6 +133,7 @@ services:
     build:
       context: ./docker/spark
       dockerfile: Dockerfile
+    image: cryptolake-spark
     container_name: cryptolake-spark-master
     ports:
       - "8082:8080"   # Spark Web UI (la imagen oficial usa 8080 internamente)
@@ -167,6 +168,7 @@ services:
       SPARK_WORKER_MEMORY: 2g
       SPARK_WORKER_CORES: 2
       SPARK_NO_DAEMONIZE: "true"
+      SPARK_WORKER_DIR: /tmp/spark-worker
     depends_on:
       spark-master:
         condition: service_healthy
@@ -179,6 +181,30 @@ services:
       spark://spark-master:7077
       --memory 2g
       --cores 2
+  
+  # ============================================================
+  # Spark Thrift Server: Punto de entrada JDBC para dbt y SQL tools.
+  # Permite ejecutar consultas SQL sobre Iceberg desde fuera de Spark.
+  # Es como un "puente" entre herramientas SQL (dbt, DBeaver, etc.)
+  # y el motor de procesamiento Spark.
+  # ============================================================
+  spark-thrift:
+      build:
+        context: ./docker/spark
+        dockerfile: Dockerfile
+      container_name: cryptolake-spark-thrift
+      ports:
+        - "10000:10000"
+      environment:
+        <<: *common-env
+        SPARK_NO_DAEMONIZE: "true"
+      volumes:
+        - ./src:/opt/spark/work/src:ro
+      depends_on:
+        spark-master:
+          condition: service_healthy
+      command: ["/opt/spark/sbin/start-thriftserver.sh", "--master","spark://spark-master:7077", "--hiveconf", "hive.server2.thrift.port=10000", "--hiveconf", "hive.server2.thrift.bind.host=0.0.0.0", "--hiveconf", "hive.server2.authentication=NOSASL", "--conf", "spark.sql.defaultCatalog=cryptolake"]
+
 
   # ==========================================================
   # CAPA DE ORQUESTACIÓN

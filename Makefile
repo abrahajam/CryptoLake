@@ -80,7 +80,7 @@ silver-transform: ## Transformar Bronze → Silver
 	    /opt/spark/bin/spark-submit \
 	    /opt/spark/work/src/processing/batch/bronze_to_silver.py
 
-gold-transform: ## Transformar Silver → Gold
+gold-transform: ## Transformar Silver → Gold (sin dbt)
 	docker exec cryptolake-spark-master \
 	    /opt/spark/bin/spark-submit \
 	    /opt/spark/work/src/processing/batch/silver_to_gold.py
@@ -89,5 +89,18 @@ pipeline: ## Ejecutar pipeline completo: Bronze → Silver → Gold
 	@echo "🚀 Ejecutando pipeline completo..."
 	$(MAKE) bronze-load
 	$(MAKE) silver-transform
-	$(MAKE) gold-transform
+#	$(MAKE) gold-transform
+	$(MAKE) dbt-run
+	$(MAKE) dbt-test
 	@echo "✅ Pipeline completado!"
+
+# ── dbt ─────────────────────────────────────────────────────
+dbt-run: ## Ejecutar modelos dbt (staging → gold)
+	cd src/transformation/dbt_cryptolake && dbt run --profiles-dir .
+
+dbt-test: ## Ejecutar tests dbt
+	cd src/transformation/dbt_cryptolake && dbt test --profiles-dir .
+
+dbt-all: ## Ejecutar dbt run + test
+	$(MAKE) dbt-run
+	$(MAKE) dbt-test

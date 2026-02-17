@@ -199,6 +199,7 @@ def create_bronze_tables(spark: SparkSession):
     """
     print("\n🏗️  Creando tablas Bronze (si no existen)...")
     
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS cryptolake.bronze LOCATION 's3://cryptolake-bronze/'")
     spark.sql("""
         CREATE TABLE IF NOT EXISTS cryptolake.bronze.historical_prices (
             coin_id         STRING      NOT NULL,
@@ -212,6 +213,7 @@ def create_bronze_tables(spark: SparkSession):
         )
         USING iceberg
         PARTITIONED BY (coin_id)
+        LOCATION 's3://cryptolake-bronze/historical_prices'
         TBLPROPERTIES (
             'write.format.default' = 'parquet',
             'write.parquet.compression-codec' = 'zstd'
@@ -229,6 +231,7 @@ def create_bronze_tables(spark: SparkSession):
             _loaded_at      TIMESTAMP   NOT NULL
         )
         USING iceberg
+        LOCATION 's3://cryptolake-bronze/fear_greed'
         TBLPROPERTIES (
             'write.format.default' = 'parquet',
             'write.parquet.compression-codec' = 'zstd'
