@@ -15,7 +15,7 @@ up: ## Arrancar todos los servicios
 	@echo ""
 	@echo "📊 Servicios disponibles:"
 	@echo "   MinIO Console:   http://localhost:9001  (user: cryptolake / pass: cryptolake123)"
-	@echo "   Kafka UI:        http://localhost:8080"
+	@echo "   Kafka UI:        http://localhost:8084"
 	@echo "   Spark UI:        http://localhost:8082"
 	@echo "   Airflow:         http://localhost:8083  (user: admin / pass: admin)"
 	@echo "   Iceberg Catalog: http://localhost:8181"
