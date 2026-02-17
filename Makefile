@@ -60,3 +60,25 @@ kafka-describe: ## Describir el topic de precios
 	docker exec cryptolake-kafka \
     		kafka-topics --bootstrap-server localhost:29092 \
     		--describe --topic prices.realtime
+
+bronze-load: ## Cargar datos de APIs a Bronze
+	docker exec cryptolake-spark-master \
+	    /opt/spark/bin/spark-submit \
+	    /opt/spark/work/src/processing/batch/api_to_bronze.py
+
+silver-transform: ## Transformar Bronze → Silver
+	docker exec cryptolake-spark-master \
+	    /opt/spark/bin/spark-submit \
+	    /opt/spark/work/src/processing/batch/bronze_to_silver.py
+
+gold-transform: ## Transformar Silver → Gold
+	docker exec cryptolake-spark-master \
+	    /opt/spark/bin/spark-submit \
+	    /opt/spark/work/src/processing/batch/silver_to_gold.py
+
+pipeline: ## Ejecutar pipeline completo: Bronze → Silver → Gold
+	@echo "🚀 Ejecutando pipeline completo..."
+	$(MAKE) bronze-load
+	$(MAKE) silver-transform
+	$(MAKE) gold-transform
+	@echo "✅ Pipeline completado!"
