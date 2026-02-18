@@ -1,48 +1,19 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-dist/
-build/
-.eggs/
-*.egg
+# Seguridad y entornos
+.env
 .venv/
 venv/
+__pycache__/
+.DS_Store
 
-# Environment
-.env
-.env.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Docker
+# Datos y logs
 docker/*/data/
-
-# Airflow
 airflow-logs/
 logs/
-
-# dbt
-src/transformation/dbt_cryptolake/target/
-src/transformation/dbt_cryptolake/dbt_packages/
-src/transformation/dbt_cryptolake/logs/
-
-# Terraform
-terraform/.terraform/
-terraform/*.tfstate
-terraform/*.tfstate.backup
-terraform/*.tfplan
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Data (no commiteamos datos locales)
-data/
 *.parquet
-*.avro
+*.log
+
+# dbt y otros
+target/
+dbt_packages/
+.terraform/
+*.tfstate
