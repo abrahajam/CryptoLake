@@ -130,3 +130,49 @@ airflow-trigger: ## Trigger manual del DAG completo en Airflow
 airflow-status: ## Ver estado de la última ejecución del DAG
 	docker exec cryptolake-airflow-scheduler \
 	    airflow dags list-runs -d cryptolake_full_pipeline --limit 5
+
+# ── Fase 7: Data Quality ────────────────────────────────────
+
+quality-check: ## Run quality checks (all layers)
+	docker exec cryptolake-spark-master \
+	    /opt/spark/bin/spark-submit \
+	    /opt/spark/work/src/quality/run_quality_checks.py
+
+quality-bronze: ## Quality checks: Bronze only
+	docker exec cryptolake-spark-master \
+	    /opt/spark/bin/spark-submit \
+	    /opt/spark/work/src/quality/run_quality_checks.py --layer bronze
+
+quality-silver: ## Quality checks: Silver only
+	docker exec cryptolake-spark-master \
+	    /opt/spark/bin/spark-submit \
+	    /opt/spark/work/src/quality/run_quality_checks.py --layer silver
+
+quality-gold: ## Quality checks: Gold only
+	docker exec cryptolake-spark-master \
+	    /opt/spark/bin/spark-submit \
+	    /opt/spark/work/src/quality/run_quality_checks.py --layer gold
+
+
+# ── Fase 7: Serving ─────────────────────────────────────────
+
+api-logs: ## Tail API logs
+	docker logs -f cryptolake-api
+
+dashboard-logs: ## Tail Dashboard logs
+	docker logs -f cryptolake-dashboard
+
+
+# ── Pipeline completo (actualizado) ─────────────────────────
+
+pipeline: ## Full pipeline: Init → Bronze → Silver → Gold → Quality
+	@echo "🚀 Running full CryptoLake pipeline..."
+	$(MAKE) init-namespaces
+	$(MAKE) bronze-load
+	$(MAKE) silver-transform
+	$(MAKE) dbt-run
+	$(MAKE) dbt-test
+	$(MAKE) quality-check
+	@echo "✅ Pipeline complete!"
+	@echo "   API Docs:  http://localhost:8000/docs"
+	@echo "   Dashboard: http://localhost:8501"

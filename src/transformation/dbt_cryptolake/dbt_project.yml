@@ -53,5 +53,6 @@ models:
 # Sin esto, dbt fallaría al intentar crear tablas en un namespace
 # que no existe.
 on-run-start:
+  - "CREATE NAMESPACE IF NOT EXISTS cryptolake.default"
   - "CREATE NAMESPACE IF NOT EXISTS cryptolake.staging"
   - "CREATE NAMESPACE IF NOT EXISTS cryptolake.gold"

@@ -69,6 +69,11 @@ services:
       AWS_ACCESS_KEY_ID: cryptolake
       AWS_SECRET_ACCESS_KEY: cryptolake123
       AWS_REGION: us-east-1
+    volumes:
+      # Persistir la base de datos SQLite del catálogo Iceberg.
+      # Sin esto, cada reinicio del contenedor pierde todos los
+      # namespaces y registros de tablas (Bronze, Silver, Gold).
+      - iceberg-catalog-data:/tmp
     depends_on:
       minio:
         condition: service_healthy
@@ -230,6 +235,7 @@ services:
       context: ./docker/airflow
       dockerfile: Dockerfile
     container_name: cryptolake-airflow-webserver
+    user: root
     ports:
       - "8083:8080"
     environment:
@@ -260,6 +266,7 @@ services:
       context: ./docker/airflow
       dockerfile: Dockerfile
     container_name: cryptolake-airflow-scheduler
+    user: root  # <--- PONLO AQUÍ (Línea crítica)
     environment:
       <<: *common-env
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -277,8 +284,41 @@ services:
         condition: service_healthy
     command: airflow scheduler
 
+  api:
+    build:
+      context: ./docker/api
+      dockerfile: Dockerfile
+    container_name: cryptolake-api
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+      THRIFT_HOST: spark-thrift
+      THRIFT_PORT: "10000"
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      - spark-thrift
+
+  dashboard:
+    image: python:3.11-slim
+    container_name: cryptolake-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      <<: *common-env
+      API_URL: http://api:8000
+    volumes:
+      - ./src/serving/dashboard:/app
+    command: >
+      bash -c "pip install streamlit requests plotly pandas &&
+      streamlit run /app/app.py --server.address 0.0.0.0"
+    depends_on:
+      - api
+
 volumes:
   minio-data:
   kafka-data:
   airflow-db-data:
   airflow-logs:
+  iceberg-catalog-data:

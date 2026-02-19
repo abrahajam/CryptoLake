@@ -20,7 +20,7 @@ cryptolake:
       method: thrift
       host: localhost
       port: 10000
-      schema: gold
+      schema: default
       # threads: cuántas consultas SQL ejecuta dbt en paralelo.
       # 1 es seguro para desarrollo local.
       auth: NOSASL
@@ -32,6 +32,6 @@ cryptolake:
       method: thrift
       host: spark-thrift
       port: 10000
-      schema: gold
+      schema: default
       auth: NOSASL
-      threads: 2
+      threads: 1

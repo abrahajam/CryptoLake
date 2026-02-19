@@ -35,14 +35,22 @@ RUN mkdir -p /opt/dbt-venv && chown airflow /opt/dbt-venv
 USER airflow
 
 # Paquetes compatibles con Airflow (sin dbt)
+# typing_extensions>=4.12: necesario para que mashumaro (dbt dep.)
+# encuentre evaluate_forward_ref cuando Python carga desde ~/.local/
 RUN pip install --no-cache-dir \
     apache-airflow-providers-apache-spark==4.7.1 \
     requests==2.31.0 \
     pydantic==2.5.0 \
     pydantic-settings==2.1.0 \
-    structlog==24.1.0
+    structlog==24.1.0 \
+    "typing_extensions>=4.13"
 
 # dbt en virtualenv aislado (evita conflicto protobuf con Airflow)
+# protobuf>=4.25,<5: el parámetro 'always_print_fields_with_no_presence'
+# de MessageToJson solo existe en protobuf 4.22–4.25.x.
+# typing_extensions>=4.12: requerido por mashumaro (dep. de dbt-common).
 RUN python -m venv /opt/dbt-venv && \
     /opt/dbt-venv/bin/pip install --no-cache-dir \
-    "dbt-spark[PyHive]==1.8.0"
+    "dbt-spark[PyHive]==1.8.0" \
+    "protobuf>=4.25,<5" \
+    "typing_extensions>=4.13"
