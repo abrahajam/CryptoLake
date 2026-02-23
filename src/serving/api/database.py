@@ -4,6 +4,7 @@ Conexión al Spark Thrift Server via PyHive.
 Reutiliza la misma conexión que dbt usa (thrift en puerto 10000).
 La API ejecuta queries SQL sobre las tablas Gold del star schema.
 """
+
 import os
 
 from pyhive import hive

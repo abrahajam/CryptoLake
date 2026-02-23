@@ -7,6 +7,7 @@ Pydantic Settings lee automáticamente de:
 
 Ejemplo: MINIO_ENDPOINT en .env → settings.minio_endpoint en Python
 """
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

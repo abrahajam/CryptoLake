@@ -10,6 +10,7 @@ Todos nuestros extractores (CoinGecko, Fear & Greed, y futuros) siguen
 el mismo flujo: extraer datos → validar → enriquecer con metadata.
 En vez de repetir esa lógica, la centralizamos aquí.
 """
+
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Any
@@ -40,10 +41,12 @@ class BaseExtractor(ABC):
         # requests.Session reutiliza la conexión HTTP entre requests.
         # Es más eficiente que crear una nueva conexión cada vez.
         self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "CryptoLake/1.0 (Educational Project)",
-            "Accept": "application/json",
-        })
+        self.session.headers.update(
+            {
+                "User-Agent": "CryptoLake/1.0 (Educational Project)",
+                "Accept": "application/json",
+            }
+        )
 
     def run(self) -> list[dict[str, Any]]:
         """

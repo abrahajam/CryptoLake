@@ -11,6 +11,7 @@ Pipeline completo:
 
 Schedule: Diario a las 06:00 UTC
 """
+
 from datetime import datetime, timedelta
 
 from airflow import DAG
@@ -36,7 +37,6 @@ with DAG(
     tags=["cryptolake", "production"],
     doc_md=__doc__,
 ) as dag:
-
     # ── INIT ────────────────────────────────────────────────
     init_namespaces = BashOperator(
         task_id="init_namespaces",
@@ -51,17 +51,11 @@ with DAG(
     with TaskGroup("ingestion") as ingestion_group:
         extract_coingecko = BashOperator(
             task_id="extract_coingecko",
-            bash_command=(
-                "cd /opt/airflow && "
-                "python -m src.ingestion.batch.coingecko_extractor"
-            ),
+            bash_command=("cd /opt/airflow && python -m src.ingestion.batch.coingecko_extractor"),
         )
         extract_fear_greed = BashOperator(
             task_id="extract_fear_greed",
-            bash_command=(
-                "cd /opt/airflow && "
-                "python -m src.ingestion.batch.fear_greed_extractor"
-            ),
+            bash_command=("cd /opt/airflow && python -m src.ingestion.batch.fear_greed_extractor"),
         )
 
     # ── BRONZE ──────────────────────────────────────────────
@@ -118,5 +112,4 @@ with DAG(
         )
 
     # ── DEPENDENCIAS ────────────────────────────────────────
-    (init_namespaces >> ingestion_group >> bronze_group
-     >> silver_group >> gold_group >> quality_group)
+    (init_namespaces >> ingestion_group >> bronze_group >> silver_group >> gold_group >> quality_group)

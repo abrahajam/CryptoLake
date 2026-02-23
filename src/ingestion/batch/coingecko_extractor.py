@@ -15,6 +15,7 @@ Endpoint que usamos:
 Para ejecutar:
     python -m src.ingestion.batch.coingecko_extractor
 """
+
 import time
 from typing import Any
 
@@ -57,7 +58,7 @@ class CoinGeckoExtractor(BaseExtractor):
                 logger.info(
                     "extracting_coin",
                     coin=coin_id,
-                    progress=f"{i+1}/{len(settings.tracked_coins)}",
+                    progress=f"{i + 1}/{len(settings.tracked_coins)}",
                     days=self.days,
                 )
 
@@ -80,12 +81,12 @@ class CoinGeckoExtractor(BaseExtractor):
                     # Si CoinGecko devuelve 429 (rate limited), esperar y reintentar
                     if response.status_code == 429:
                         if attempt < max_retries:
-                            wait_time = 30 * (2 ** attempt)  # 30s, 60s, 120s
+                            wait_time = 30 * (2**attempt)  # 30s, 60s, 120s
                             logger.warning(
-                                    "rate_limited",
-                                    coin=coin_id,
-                                    attempt=attempt + 1,
-                                    waiting_seconds=wait_time,
+                                "rate_limited",
+                                coin=coin_id,
+                                attempt=attempt + 1,
+                                waiting_seconds=wait_time,
                             )
                             time.sleep(wait_time)
                         else:
@@ -113,15 +114,9 @@ class CoinGeckoExtractor(BaseExtractor):
                         "timestamp_ms": int(timestamp_ms),
                         "price_usd": float(price),
                         "market_cap_usd": (
-                            float(market_caps[idx][1])
-                            if idx < len(market_caps) and market_caps[idx][1]
-                            else None
+                            float(market_caps[idx][1]) if idx < len(market_caps) and market_caps[idx][1] else None
                         ),
-                        "volume_24h_usd": (
-                            float(volumes[idx][1])
-                            if idx < len(volumes) and volumes[idx][1]
-                            else None
-                        ),
+                        "volume_24h_usd": (float(volumes[idx][1]) if idx < len(volumes) and volumes[idx][1] else None),
                     }
                     all_records.append(record)
 
@@ -162,13 +157,7 @@ class CoinGeckoExtractor(BaseExtractor):
             timestamp = record.get("timestamp_ms")
             coin = record.get("coin_id")
 
-            if (
-                coin
-                and price is not None
-                and price > 0
-                and timestamp is not None
-                and timestamp > 0
-            ):
+            if coin and price is not None and price > 0 and timestamp is not None and timestamp > 0:
                 valid.append(record)
             else:
                 invalid_count += 1

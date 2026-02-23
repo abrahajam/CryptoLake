@@ -16,6 +16,7 @@ Gratuita, sin límite de requests.
 Para ejecutar:
     python -m src.ingestion.batch.fear_greed_extractor
 """
+
 from typing import Any
 
 import structlog
@@ -66,23 +67,21 @@ class FearGreedExtractor(BaseExtractor):
 
         records = []
         for entry in data.get("data", []):
-            records.append({
-                "value": int(entry["value"]),
-                "classification": entry["value_classification"],
-                "timestamp": int(entry["timestamp"]),
-                "time_until_update": entry.get("time_until_update"),
-            })
+            records.append(
+                {
+                    "value": int(entry["value"]),
+                    "classification": entry["value_classification"],
+                    "timestamp": int(entry["timestamp"]),
+                    "time_until_update": entry.get("time_until_update"),
+                }
+            )
 
         logger.info("fear_greed_extracted", total_records=len(records))
         return records
 
     def validate(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Valida que el valor esté en rango 0-100."""
-        return [
-            r for r in data
-            if 0 <= r.get("value", -1) <= 100
-            and r.get("timestamp", 0) > 0
-        ]
+        return [r for r in data if 0 <= r.get("value", -1) <= 100 and r.get("timestamp", 0) > 0]
 
 
 if __name__ == "__main__":
@@ -95,6 +94,7 @@ if __name__ == "__main__":
 
         # Distribución de sentimiento
         from collections import Counter
+
         dist = Counter(r["classification"] for r in records)
         for sentiment, count in dist.most_common():
             print(f"   {sentiment}: {count} días")

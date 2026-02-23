@@ -1,4 +1,5 @@
 """Minimal check: does bronze namespace exist?"""
+
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.appName("q").master("local[*]").getOrCreate()

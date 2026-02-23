@@ -1,10 +1,8 @@
 """Check all namespaces and tables in cryptolake catalog."""
+
 from pyspark.sql import SparkSession
 
-spark = SparkSession.builder \
-    .appName("check-all") \
-    .master("local[*]") \
-    .getOrCreate()
+spark = SparkSession.builder.appName("check-all").master("local[*]").getOrCreate()
 
 try:
     print("=== ALL NAMESPACES ===")

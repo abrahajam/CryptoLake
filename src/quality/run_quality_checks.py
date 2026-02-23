@@ -5,6 +5,7 @@ spark-submit src/quality/run_quality_checks.py
 spark-submit src/quality/run_quality_checks.py --layer bronze
 spark-submit src/quality/run_quality_checks.py --layer silver --layer gold
 """
+
 import argparse
 import logging
 import sys
@@ -33,17 +34,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 RESULTS_TABLE = "cryptolake.quality.check_results"
-RESULTS_SCHEMA = StructType([
-    StructField("check_name", StringType(), False),
-    StructField("layer", StringType(), False),
-    StructField("table_name", StringType(), False),
-    StructField("status", StringType(), False),
-    StructField("metric_value", DoubleType(), True),
-    StructField("threshold", DoubleType(), True),
-    StructField("message", StringType(), True),
-    StructField("checked_at", StringType(), False),
-    StructField("run_id", StringType(), False),
-])
+RESULTS_SCHEMA = StructType(
+    [
+        StructField("check_name", StringType(), False),
+        StructField("layer", StringType(), False),
+        StructField("table_name", StringType(), False),
+        StructField("status", StringType(), False),
+        StructField("metric_value", DoubleType(), True),
+        StructField("threshold", DoubleType(), True),
+        StructField("message", StringType(), True),
+        StructField("checked_at", StringType(), False),
+        StructField("run_id", StringType(), False),
+    ]
+)
 
 
 def persist_results(spark, results, run_id):
@@ -81,8 +84,7 @@ def print_summary(results):
             if c.status != CheckStatus.PASSED:
                 icons = {"failed": "❌", "warning": "⚠️", "error": "💥"}
                 short = c.table_name.split(".")[-1]
-                print(f"     {icons.get(c.status.value, '?')} "
-                      f"{c.check_name} ({short}): {c.message}")
+                print(f"     {icons.get(c.status.value, '?')} {c.check_name} ({short}): {c.message}")
 
     total = len(results)
     ok = sum(1 for r in results if r.status == CheckStatus.PASSED)
@@ -96,8 +98,7 @@ def print_summary(results):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--layer", action="append", default=None,
-                        choices=["bronze", "silver", "gold"])
+    parser.add_argument("--layer", action="append", default=None, choices=["bronze", "silver", "gold"])
     args = parser.parse_args()
     layers = args.layer or ["bronze", "silver", "gold"]
 

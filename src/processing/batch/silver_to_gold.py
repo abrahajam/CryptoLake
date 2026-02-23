@@ -17,6 +17,7 @@ Ejecución:
     docker exec cryptolake-spark-master \
         /opt/spark/bin/spark-submit /opt/spark/work/src/processing/batch/silver_to_gold.py
 """
+
 from __future__ import annotations
 
 from pyspark.sql import SparkSession

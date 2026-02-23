@@ -11,6 +11,7 @@ Ejecución:
     docker exec cryptolake-spark-master \
         /opt/spark/bin/spark-submit /opt/spark/work/src/processing/batch/api_to_bronze.py
 """
+
 from __future__ import annotations
 
 import time
@@ -39,8 +40,14 @@ FEAR_GREED_URL = "https://api.alternative.me/fng/"
 DAYS_TO_EXTRACT = 90
 
 TRACKED_COINS = [
-    "bitcoin", "ethereum", "solana", "cardano",
-    "polkadot", "chainlink", "avalanche-2", "polygon-ecosystem-token",
+    "bitcoin",
+    "ethereum",
+    "solana",
+    "cardano",
+    "polkadot",
+    "chainlink",
+    "avalanche-2",
+    "polygon-ecosystem-token",
 ]
 
 
@@ -52,28 +59,33 @@ TRACKED_COINS = [
 # dejes que Spark "infiera" el schema porque puede equivocarse y además
 # no documentas qué esperas recibir.
 
-BRONZE_HISTORICAL_SCHEMA = StructType([
-    StructField("coin_id", StringType(), nullable=False),
-    StructField("timestamp_ms", LongType(), nullable=False),
-    StructField("price_usd", DoubleType(), nullable=False),
-    StructField("market_cap_usd", DoubleType(), nullable=True),
-    StructField("volume_24h_usd", DoubleType(), nullable=True),
-    StructField("_ingested_at", StringType(), nullable=False),
-    StructField("_source", StringType(), nullable=False),
-])
+BRONZE_HISTORICAL_SCHEMA = StructType(
+    [
+        StructField("coin_id", StringType(), nullable=False),
+        StructField("timestamp_ms", LongType(), nullable=False),
+        StructField("price_usd", DoubleType(), nullable=False),
+        StructField("market_cap_usd", DoubleType(), nullable=True),
+        StructField("volume_24h_usd", DoubleType(), nullable=True),
+        StructField("_ingested_at", StringType(), nullable=False),
+        StructField("_source", StringType(), nullable=False),
+    ]
+)
 
-BRONZE_FEAR_GREED_SCHEMA = StructType([
-    StructField("value", IntegerType(), nullable=False),
-    StructField("classification", StringType(), nullable=False),
-    StructField("timestamp", LongType(), nullable=False),
-    StructField("_ingested_at", StringType(), nullable=False),
-    StructField("_source", StringType(), nullable=False),
-])
+BRONZE_FEAR_GREED_SCHEMA = StructType(
+    [
+        StructField("value", IntegerType(), nullable=False),
+        StructField("classification", StringType(), nullable=False),
+        StructField("timestamp", LongType(), nullable=False),
+        StructField("_ingested_at", StringType(), nullable=False),
+        StructField("_source", StringType(), nullable=False),
+    ]
+)
 
 
 # ================================================================
 # FUNCIONES DE EXTRACCIÓN
 # ================================================================
+
 
 def extract_coingecko(days: int = 90) -> list[dict]:
     """
@@ -88,7 +100,7 @@ def extract_coingecko(days: int = 90) -> list[dict]:
 
     for i, coin_id in enumerate(TRACKED_COINS):
         try:
-            print(f"  📥 Extrayendo {coin_id} ({i+1}/{len(TRACKED_COINS)})...")
+            print(f"  📥 Extrayendo {coin_id} ({i + 1}/{len(TRACKED_COINS)})...")
 
             max_retries = 3
             response = None
@@ -102,8 +114,8 @@ def extract_coingecko(days: int = 90) -> list[dict]:
 
                 if response.status_code == 429:
                     if attempt < max_retries:
-                        wait = 30 * (2 ** attempt)
-                        print(f"  ⏳ Rate limited, esperando {wait}s (intento {attempt+1})...")
+                        wait = 30 * (2**attempt)
+                        print(f"  ⏳ Rate limited, esperando {wait}s (intento {attempt + 1})...")
                         time.sleep(wait)
                     else:
                         response.raise_for_status()
@@ -119,23 +131,21 @@ def extract_coingecko(days: int = 90) -> list[dict]:
 
             for idx, (ts, price) in enumerate(prices):
                 if price and price > 0:
-                    all_records.append({
-                        "coin_id": coin_id,
-                        "timestamp_ms": int(ts),
-                        "price_usd": float(price),
-                        "market_cap_usd": (
-                            float(market_caps[idx][1])
-                            if idx < len(market_caps) and market_caps[idx][1]
-                            else None
-                        ),
-                        "volume_24h_usd": (
-                            float(volumes[idx][1])
-                            if idx < len(volumes) and volumes[idx][1]
-                            else None
-                        ),
-                        "_ingested_at": now,
-                        "_source": "coingecko",
-                    })
+                    all_records.append(
+                        {
+                            "coin_id": coin_id,
+                            "timestamp_ms": int(ts),
+                            "price_usd": float(price),
+                            "market_cap_usd": (
+                                float(market_caps[idx][1]) if idx < len(market_caps) and market_caps[idx][1] else None
+                            ),
+                            "volume_24h_usd": (
+                                float(volumes[idx][1]) if idx < len(volumes) and volumes[idx][1] else None
+                            ),
+                            "_ingested_at": now,
+                            "_source": "coingecko",
+                        }
+                    )
 
             print(f"  ✅ {coin_id}: {len(prices)} datapoints")
 
@@ -169,13 +179,15 @@ def extract_fear_greed(days: int = 90) -> list[dict]:
     for entry in data.get("data", []):
         value = int(entry["value"])
         if 0 <= value <= 100:
-            records.append({
-                "value": value,
-                "classification": entry["value_classification"],
-                "timestamp": int(entry["timestamp"]),
-                "_ingested_at": now,
-                "_source": "fear_greed_index",
-            })
+            records.append(
+                {
+                    "value": value,
+                    "classification": entry["value_classification"],
+                    "timestamp": int(entry["timestamp"]),
+                    "_ingested_at": now,
+                    "_source": "fear_greed_index",
+                }
+            )
 
     print(f"  ✅ Fear & Greed: {len(records)} datapoints")
     return records
@@ -184,6 +196,7 @@ def extract_fear_greed(days: int = 90) -> list[dict]:
 # ================================================================
 # FUNCIONES DE CARGA A ICEBERG
 # ================================================================
+
 
 def create_bronze_tables(spark: SparkSession):
     """
@@ -305,11 +318,7 @@ if __name__ == "__main__":
     # .appName() aparece en el Spark UI para identificar este job.
     # Las configuraciones de Iceberg y S3 ya están en spark-defaults.conf
     # (se cargan automáticamente), así que no necesitamos repetirlas aquí.
-    spark = (
-        SparkSession.builder
-        .appName("CryptoLake-APIToBronze")
-        .getOrCreate()
-    )
+    spark = SparkSession.builder.appName("CryptoLake-APIToBronze").getOrCreate()
 
     try:
         load_to_bronze(spark)

@@ -13,6 +13,7 @@ Ejecución:
     docker exec cryptolake-spark-master \
         /opt/spark/bin/spark-submit /opt/spark/work/src/processing/batch/bronze_to_silver.py
 """
+
 from __future__ import annotations
 
 from pyspark.sql import SparkSession
@@ -82,43 +83,25 @@ def process_prices(spark: SparkSession):
     # 2. Convertir timestamp a fecha
     # from_unixtime espera segundos, pero timestamp_ms está en milisegundos
     # por eso dividimos entre 1000
-    typed_df = bronze_df.withColumn(
-        "price_date",
-        from_unixtime(col("timestamp_ms") / 1000).cast("date")
-    )
+    typed_df = bronze_df.withColumn("price_date", from_unixtime(col("timestamp_ms") / 1000).cast("date"))
 
     # 3. Deduplicar
     # Window function: para cada grupo (coin_id, price_date),
     # ordena por _loaded_at descendente (más reciente primero)
     # y asigna row_number. Nos quedamos solo con row_number = 1.
-    dedup_window = Window.partitionBy("coin_id", "price_date").orderBy(
-        col("_loaded_at").desc()
-    )
+    dedup_window = Window.partitionBy("coin_id", "price_date").orderBy(col("_loaded_at").desc())
 
     deduped_df = (
-        typed_df
-        .withColumn("_row_num", row_number().over(dedup_window))
-        .filter(col("_row_num") == 1)
-        .drop("_row_num")
+        typed_df.withColumn("_row_num", row_number().over(dedup_window)).filter(col("_row_num") == 1).drop("_row_num")
     )
 
     # 4. Filtrar precios inválidos y limpiar nulls
     cleaned_df = (
-        deduped_df
-        .filter(col("price_usd") > 0)
-        .withColumn(
-            "market_cap_usd",
-            when(col("market_cap_usd") > 0, col("market_cap_usd"))
-        )
-        .withColumn(
-            "volume_24h_usd",
-            when(col("volume_24h_usd") > 0, col("volume_24h_usd"))
-        )
+        deduped_df.filter(col("price_usd") > 0)
+        .withColumn("market_cap_usd", when(col("market_cap_usd") > 0, col("market_cap_usd")))
+        .withColumn("volume_24h_usd", when(col("volume_24h_usd") > 0, col("volume_24h_usd")))
         .withColumn("_processed_at", current_timestamp())
-        .select(
-            "coin_id", "price_date", "price_usd",
-            "market_cap_usd", "volume_24h_usd", "_processed_at"
-        )
+        .select("coin_id", "price_date", "price_usd", "market_cap_usd", "volume_24h_usd", "_processed_at")
     )
 
     total_clean = cleaned_df.count()
@@ -161,8 +144,7 @@ def process_fear_greed(spark: SparkSession):
     dedup_window = Window.partitionBy("index_date").orderBy(col("_loaded_at").desc())
 
     silver_df = (
-        bronze_df
-        .withColumn("index_date", from_unixtime(col("timestamp")).cast("date"))
+        bronze_df.withColumn("index_date", from_unixtime(col("timestamp")).cast("date"))
         .withColumn("_row_num", row_number().over(dedup_window))
         .filter(col("_row_num") == 1)
         .withColumn("_processed_at", current_timestamp())

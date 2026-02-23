@@ -1,4 +1,5 @@
 """Tests unitarios para los schemas de la API."""
+
 from datetime import date
 
 from src.serving.api.models.schemas import (

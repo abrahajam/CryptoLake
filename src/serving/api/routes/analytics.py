@@ -18,9 +18,7 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
 async def get_market_overview():
     """Resumen general del mercado crypto."""
     try:
-        coins = execute_query(
-            "SELECT COUNT(*) AS cnt FROM cryptolake.gold.dim_coins"
-        )
+        coins = execute_query("SELECT COUNT(*) AS cnt FROM cryptolake.gold.dim_coins")
         facts = execute_query("""
             SELECT COUNT(*) AS cnt,
                    MIN(price_date) AS min_d,

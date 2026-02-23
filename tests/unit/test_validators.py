@@ -1,4 +1,5 @@
 """Tests unitarios para el módulo de quality."""
+
 from src.quality.validators import CheckResult, CheckStatus
 
 

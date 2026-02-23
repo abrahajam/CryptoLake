@@ -13,6 +13,7 @@ Binance envía ~50-200 mensajes por SEGUNDO dependiendo de la actividad del merc
 Para ejecutar:
     python -m src.ingestion.streaming.binance_producer
 """
+
 import asyncio
 import json
 import signal
@@ -64,7 +65,7 @@ def create_kafka_producer() -> Producer:
         "acks": "all",
         "compression.type": "snappy",
         "linger.ms": 100,
-        "batch.size": 65536,   # 64KB de batch máximo
+        "batch.size": 65536,  # 64KB de batch máximo
         "retries": 3,
         "retry.backoff.ms": 500,
     }
@@ -160,9 +161,7 @@ async def stream_prices():
 
     # Construir URL con todos los streams combinados
     # Formato: wss://stream.binance.com:9443/ws/btcusdt@aggTrade/ethusdt@aggTrade/...
-    streams = "/".join(
-        f"{symbol}@aggTrade" for symbol in BINANCE_SYMBOLS.keys()
-    )
+    streams = "/".join(f"{symbol}@aggTrade" for symbol in BINANCE_SYMBOLS.keys())
     ws_url = f"{BINANCE_WS_URL}/{streams}"
 
     logger.info(

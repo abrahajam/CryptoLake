@@ -1,10 +1,8 @@
 """Check if Silver tables exist and have data."""
+
 from pyspark.sql import SparkSession
 
-spark = SparkSession.builder \
-    .appName("check-silver") \
-    .master("spark://spark-master:7077") \
-    .getOrCreate()
+spark = SparkSession.builder.appName("check-silver").master("spark://spark-master:7077").getOrCreate()
 
 try:
     # List all tables in the silver namespace

@@ -31,7 +31,7 @@ content = content.replace(
                 including_default_value_fields=True,
                 indent=None,
                 sort_keys=True,
-            )"""
+            )""",
 )
 
 # Patch to_dict method too
@@ -52,7 +52,7 @@ content = content.replace(
                 self.pb_msg,
                 preserving_proto_field_name=True,
                 including_default_value_fields=True,
-            )"""
+            )""",
 )
 
 with open(target, "w") as f:
@@ -64,4 +64,4 @@ print("PATCHED successfully!")
 with open(target, "r") as f:
     for i, line in enumerate(f):
         if "except TypeError" in line:
-            print(f"  Found try/except at line {i+1}")
+            print(f"  Found try/except at line {i + 1}")
