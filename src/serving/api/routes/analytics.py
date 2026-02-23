@@ -1,7 +1,6 @@
 """
 Endpoints analíticos — market overview, fear & greed, coins.
 """
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 

@@ -14,14 +14,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """
     Todas las configuraciones del proyecto.
-    
+
     Cada campo es una variable de entorno.
     El nombre del campo en snake_case se convierte automáticamente
     al nombre de la variable en UPPER_CASE.
-    
+
     Ejemplo: minio_endpoint → lee de MINIO_ENDPOINT
     """
-    
+
     # Le dice a Pydantic dónde buscar el archivo .env
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -33,18 +33,18 @@ class Settings(BaseSettings):
     minio_endpoint: str = "http://localhost:9000"
     minio_access_key: str = "cryptolake"
     minio_secret_key: str = "cryptolake123"
-    
+
     # ── Kafka ───────────────────────────────────────────────
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_prices: str = "prices.realtime"
-    
+
     # ── Iceberg ─────────────────────────────────────────────
     iceberg_catalog_uri: str = "http://localhost:8181"
-    
+
     # ── APIs externas ───────────────────────────────────────
     coingecko_base_url: str = "https://api.coingecko.com/api/v3"
     fear_greed_url: str = "https://api.alternative.me/fng/"
-    
+
     # ── Coins a rastrear ────────────────────────────────────
     tracked_coins: str | list[str] = "bitcoin,ethereum,solana,cardano,polkadot,chainlink,avalanche-2,matic-network"
 

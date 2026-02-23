@@ -26,9 +26,10 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from pyspark.sql import SparkSession
+if TYPE_CHECKING:
+    from pyspark.sql import SparkSession
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,11 @@ class BaseValidator:
     """Clase base con utilidades comunes para todos los validadores."""
 
     def __init__(self, spark: SparkSession):
+        # Lazy import: PySpark solo está disponible dentro de Docker
+        from pyspark.sql import SparkSession as _SparkSession  # noqa: F811
+
+        if not isinstance(spark, _SparkSession):
+            raise TypeError("spark must be a SparkSession")
         self.spark = spark
         self.results: list[CheckResult] = []
 

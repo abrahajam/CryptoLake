@@ -1,5 +1,6 @@
 """Minimal check: does bronze namespace exist?"""
 from pyspark.sql import SparkSession
+
 spark = SparkSession.builder.appName("q").master("local[*]").getOrCreate()
 print("NAMESPACES:")
 for row in spark.sql("SHOW NAMESPACES IN cryptolake").collect():

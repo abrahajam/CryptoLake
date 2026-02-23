@@ -6,20 +6,24 @@ spark-submit src/quality/run_quality_checks.py --layer bronze
 spark-submit src/quality/run_quality_checks.py --layer silver --layer gold
 """
 import argparse
-import json
 import logging
 import sys
 from datetime import datetime, timezone
 
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
-    DoubleType, StringType, StructField, StructType,
+    DoubleType,
+    StringType,
+    StructField,
+    StructType,
 )
 
 sys.path.insert(0, "/opt/spark/work")
 from src.quality.validators import (
-    BronzeValidator, SilverValidator, GoldValidator,
-    CheckResult, CheckStatus,
+    BronzeValidator,
+    CheckStatus,
+    GoldValidator,
+    SilverValidator,
 )
 
 logging.basicConfig(

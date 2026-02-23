@@ -8,7 +8,6 @@ import os
 
 from pyhive import hive
 
-
 # Dentro de Docker: spark-thrift. Desde Mac: localhost
 THRIFT_HOST = os.getenv("THRIFT_HOST", "spark-thrift")
 THRIFT_PORT = int(os.getenv("THRIFT_PORT", "10000"))

@@ -35,3 +35,12 @@ cryptolake:
       schema: default
       auth: NOSASL
       threads: 1
+
+    # CI: solo compila SQL sin conectar a Spark
+    ci:
+      type: spark
+      method: thrift
+      host: localhost
+      port: 10000
+      schema: gold
+      threads: 1
